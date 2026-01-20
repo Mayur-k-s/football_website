@@ -1,56 +1,69 @@
 import React, { useState } from 'react';
 
 const League = () => {
-    // Track which cards are flipped
-    const [flipped, setFlipped] = useState([false, false, false]);
+  // Array of objects for the 3 league cards
+  const leagues = [
+    { 
+      name: "Premier League", 
+      color: "bg-purple-700", 
+      teams: ["1. Man City", "2. Arsenal", "3. Liverpool"] 
+    },
+    { 
+      name: "La Liga", 
+      color: "bg-yellow-500", 
+      teams: ["1. Real Madrid", "2. Barcelona", "3. Atletico"] 
+    },
+    { 
+      name: "Bundesliga", 
+      color: "bg-red-700", 
+      teams: ["1. Bayern Munich", "2. Leverkusen", "3. Dortmund"] 
+    }
+  ];
 
-    const toggleFlip = (index) => {
-        const newFlipped = [...flipped];
-        newFlipped[index] = !newFlipped[index];
-        setFlipped(newFlipped);
-    };
+  const [flipped, setFlipped] = useState([false, false, false]);
 
-    const teams = [
-        { name: "Real Madrid", league: "La Liga", color: "bg-blue-600" },
-        { name: "Manchester City", league: "Premier League", color: "bg-sky-400" },
-        { name: "Bayern Munich", league: "Bundesliga", color: "bg-red-600" }
-    ];
+  const toggleFlip = (index) => {
+    const newFlipped = [...flipped];
+    newFlipped[index] = !newFlipped[index];
+    setFlipped(newFlipped);
+  };
 
-    return (
-        <div className="min-h-screen bg-zinc-900 text-white p-10 flex flex-col items-center">
-            <h2 className="text-4xl font-bold mb-12">Global Leagues</h2>
-
-            <div className="flex gap-8 perspective-1000">
-                {teams.map((team, index) => (
-                    <div
-                        key={index}
-                        onClick={() => toggleFlip(index)}
-                        className="relative w-64 h-80 cursor-pointer transition-all duration-500 preserve-3d"
-                        style={{ transform: flipped[index] ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-                    >
-                        {/* Front of Card */}
-                        <div className="absolute inset-0 backface-hidden bg-zinc-800 border border-white/10 rounded-2xl flex flex-col items-center justify-center p-6 shadow-xl">
-                            <div className="w-16 h-16 bg-white/10 rounded-full mb-4 flex items-center justify-center">
-                                🏆
-                            </div>
-                            <h3 className="text-xl font-semibold text-gray-400">{team.league}</h3>
-                            <p className="mt-4 text-sm uppercase tracking-widest text-blue-400 font-bold">Click to Reveal</p>
-                        </div>
-
-                        {/* Back of Card (Team Name) */}
-                        <div
-                            className={`absolute inset-0 backface-hidden ${team.color} rounded-2xl flex items-center justify-center p-6 shadow-2xl`}
-                            style={{ transform: 'rotateY(180deg)' }}
-                        >
-                            <h2 className="text-3xl font-black text-center uppercase leading-tight">
-                                {team.name}
-                            </h2>
-                        </div>
-                    </div>
-                ))}
+  return (
+    <div className="min-h-[90vh] flex flex-col items-center justify-center bg-zinc-900 text-white p-6">
+      <h1 className="text-4xl font-black mb-12 uppercase tracking-widest text-blue-500">
+        Global League Standings
+      </h1>
+      
+      {/* Centered Container */}
+      <div className="flex flex-wrap justify-center gap-10 perspective-1000">
+        {leagues.map((league, index) => (
+          <div 
+            key={index}
+            onClick={() => toggleFlip(index)}
+            className="relative w-80 h-48 cursor-pointer transition-all duration-700 preserve-3d"
+            style={{ transform: flipped[index] ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+          >
+            {/* FRONT: League Name */}
+            <div className="absolute inset-0 backface-hidden bg-zinc-800 border-2 border-white/10 rounded-xl flex items-center justify-center shadow-2xl">
+              <h3 className="text-2xl font-bold uppercase tracking-tighter">{league.name}</h3>
+              <div className="absolute bottom-4 text-xs text-gray-500 font-mono">CLICK TO REVEAL TOP 3</div>
             </div>
-        </div>
-    );
+
+            {/* BACK: Top 3 Teams */}
+            <div 
+              className={`absolute inset-0 backface-hidden ${league.color} rounded-xl flex flex-col items-center justify-center shadow-2xl`}
+              style={{ transform: 'rotateY(180deg)' }}
+            >
+              <h4 className="text-sm font-bold mb-2 opacity-80 uppercase">Top 3 Teams</h4>
+              {league.teams.map((team, i) => (
+                <p key={i} className="text-xl font-black italic uppercase">{team}</p>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default League;
