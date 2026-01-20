@@ -1,80 +1,219 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 
-const Chatbot = () => {
-  const [input, setInput] = useState('');
+/* ================= CONFIG ================= */
+
+// ❗ FRONTEND API KEY (VISIBLE IN BROWSER)
+const TAVILY_API_KEY = "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";
+
+/* ================= MAIN PAGE ================= */
+
+export default function Chatbot() {
   const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Hello! I am your Transfer Scout. Ask me about any player or team.' }
+    {
+      role: "assistant",
+      text: "Hi 👋 I'm your Football AI assistant. Ask me anything!"
+    }
   ]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
 
-  const handleSearch = async () => {
-    if (!input) return;
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function sendMessage() {
+    if (!input.trim() || loading) return;
+
+    const userText = input;
+    setInput("");
+
+    setMessages(prev => [...prev, { role: "user", text: userText }]);
     setLoading(true);
-    setMessages(prev => [...prev, { role: 'user', text: input }]);
 
     try {
-      const response = await fetch('https://api.tavily.com/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          api_key: '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',
-          query: `latest football transfer news about ${input}`,
-          search_depth: "basic",
-          include_answer: true
-        })
-      });
-
-      const data = await response.json();
-      const botReply = data.answer || data.results[0]?.content || "I couldn't find any recent rumors on that. Try another player!";
-      
-      setMessages(prev => [...prev, { role: 'bot', text: botReply }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'bot', text: "Error connecting to the scouting network." }]);
+      const botText = await fetchFromTavily(userText);
+      setMessages(prev => [...prev, { role: "assistant", text: botText }]);
+      speak(botText);
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        { role: "assistant", text: "⚠️ Error contacting Tavily API." }
+      ]);
     }
-    
-    setInput('');
+
     setLoading(false);
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center p-6">
-      <div className="w-full max-w-2xl bg-zinc-900 rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col h-[80vh]">
-        {/* Header */}
-        <div className="bg-blue-600 p-4 font-bold text-center uppercase tracking-tighter">
-          ⚽ Transfer Bot (Live Search)
-        </div>
+    <>
+      <style>{`
+        .chat-page {
+          height: calc(100vh - 80px);
+          display: grid;
+          grid-template-columns: 1.3fr 1fr;
+          background: radial-gradient(circle at top, #1b5e20, #0b3d2e);
+          color: white;
+        }
 
-        {/* Chat Window */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] p-3 rounded-xl ${m.role === 'user' ? 'bg-blue-500' : 'bg-zinc-800 border border-white/5'}`}>
+        .chat-panel {
+          display: flex;
+          flex-direction: column;
+          padding: 20px;
+          backdrop-filter: blur(14px);
+          background: rgba(0,0,0,0.55);
+        }
+
+        .messages {
+          flex: 1;
+          overflow-y: auto;
+          margin-top: 10px;
+        }
+
+        .msg {
+          max-width: 80%;
+          padding: 12px 16px;
+          border-radius: 14px;
+          margin-bottom: 12px;
+          line-height: 1.4;
+          font-size: 14px;
+        }
+
+        .user {
+          background: #ffd54f;
+          color: black;
+          align-self: flex-end;
+        }
+
+        .assistant {
+          background: rgba(255,255,255,0.15);
+          align-self: flex-start;
+        }
+
+        .input-bar {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+
+        .input-bar input {
+          flex: 1;
+          padding: 12px;
+          border-radius: 10px;
+          border: none;
+          outline: none;
+        }
+
+        .input-bar button {
+          padding: 12px 18px;
+          border-radius: 10px;
+          background: #ffd54f;
+          border: none;
+          cursor: pointer;
+          font-weight: bold;
+        }
+
+        .avatar-panel {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0,0,0,0.35);
+        }
+
+        .loading {
+          opacity: 0.6;
+          font-style: italic;
+        }
+      `}</style>
+
+      <div className="chat-page">
+        {/* CHAT */}
+        <div className="chat-panel">
+          <h2>⚽ Football AI Assistant</h2>
+
+          <div className="messages">
+            {messages.map((m, i) => (
+              <div key={i} className={`msg ${m.role}`}>
                 {m.text}
               </div>
-            </div>
-          ))}
-          {loading && <div className="text-gray-500 animate-pulse">Scouting the latest news...</div>}
+            ))}
+            {loading && (
+              <div className="msg assistant loading">Thinking…</div>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          <div className="input-bar">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sendMessage()}
+              placeholder="Ask about formations, players, tactics..."
+            />
+            <button onClick={sendMessage}>Send</button>
+          </div>
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 border-t border-white/10 flex gap-2">
-          <input 
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Search player (e.g. Mbappe transfer)..."
-            className="flex-1 bg-zinc-800 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-          />
-          <button 
-            onClick={handleSearch}
-            className="bg-blue-600 px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition"
-          >
-            Ask
-          </button>
+        {/* 3D AVATAR */}
+        <div className="avatar-panel">
+          <Avatar3D />
         </div>
       </div>
-    </div>
+    </>
   );
-};
+}
 
-export default Chatbot;
+/* ================= TAVILY FRONTEND CALL ================= */
+
+async function fetchFromTavily(query) {
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${TAVILY_API_KEY}`
+    },
+    body: JSON.stringify({
+      query,
+      search_depth: "advanced",
+      include_answer: true
+    })
+  });
+
+  const data = await response.json();
+
+  return (
+    data.answer ||
+    data.results?.[0]?.content ||
+    "I couldn't find a good answer."
+  );
+}
+
+/* ================= VOICE OUTPUT ================= */
+
+function speak(text) {
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+/* ================= 3D AVATAR ================= */
+
+function Avatar3D() {
+  return (
+    <Canvas camera={{ position: [0, 1.6, 3] }}>
+      <ambientLight intensity={0.9} />
+      <directionalLight position={[2, 5, 5]} />
+      {/* Placeholder avatar */}
+      <mesh>
+        <sphereGeometry args={[0.6, 32, 32]} />
+        <meshStandardMaterial color="#ffd54f" />
+      </mesh>
+      <OrbitControls enableZoom={false} />
+    </Canvas>
+  );
+}
